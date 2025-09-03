@@ -21,7 +21,7 @@ interface PatternData {
   updated_at: string;
 }
 
-let sequencerScheduler: AudioScheduler | null = null;
+const sequencerScheduler: AudioScheduler | null = null;
 const sampleBuffers: { [key: string]: AudioBuffer | null } = {
   kick: null,
   snare: null,

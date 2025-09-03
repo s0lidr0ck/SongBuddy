@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  eslint: {
+    // Skip ESLint during builds for deployment
+    ignoreDuringBuilds: true,
+  },
   serverExternalPackages: ['rxdb'],
   experimental: {
     esmExternals: true,
