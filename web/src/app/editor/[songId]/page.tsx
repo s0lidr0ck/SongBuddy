@@ -132,7 +132,7 @@ export default function EditorPage() {
           updated_at: doc.get('updated_at')
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading song:', error);
     }
   };
@@ -159,7 +159,7 @@ export default function EditorPage() {
       // Build full text from lines
       const fullTextContent = lineList.map((line: any) => line.text).join('\n');
       setFullText(fullTextContent);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading lines:', error);
     } finally {
       setLoading(false);
@@ -215,7 +215,7 @@ export default function EditorPage() {
       await loadLines();
       await loadSong();
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving full text:', error);
     }
   };
@@ -287,7 +287,7 @@ export default function EditorPage() {
       ]);
       
       setWordInfo({ rhymes, synonyms, definition });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching word info:', error);
     }
   };
