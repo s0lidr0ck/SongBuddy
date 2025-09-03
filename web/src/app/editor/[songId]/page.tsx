@@ -157,7 +157,7 @@ export default function EditorPage() {
       setLines(lineList);
       
       // Build full text from lines
-      const fullTextContent = lineList.map(line => line.text).join('\n');
+      const fullTextContent = lineList.map((line: any) => line.text).join('\n');
       setFullText(fullTextContent);
     } catch (error) {
       console.error('Error loading lines:', error);
