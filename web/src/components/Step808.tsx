@@ -80,12 +80,12 @@ export default function Step808() {
   const loadSamples = async (schedulerInstance: AudioScheduler) => {
     if (!schedulerInstance) return;
     try {
-      // Try to load samples from public folder; fallback to synths if not found
+      // Load samples from S3; fallback to synths if not found
       const [kick, snare, hat, ride] = await Promise.all([
-        schedulerInstance.loadSample('/audio/808/kick.wav'),
-        schedulerInstance.loadSample('/audio/808/snare.wav'),
-        schedulerInstance.loadSample('/audio/808/hat.wav'),
-        schedulerInstance.loadSample('/audio/808/ride.wav')
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/kick.mp3'),
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/snare.mp3'),
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/hat.mp3'),
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/ride.mp3')
       ]);
       sampleBuffers.kick = kick;
       sampleBuffers.snare = snare;

@@ -34,8 +34,8 @@ export default function Metronome() {
     if (!schedulerInstance) return;
     
     try {
-      const onBeatSample = await schedulerInstance.loadSample('/audio/on-beat.mp3');
-      const offBeatSample = await schedulerInstance.loadSample('/audio/off-beat.mp3');
+      const onBeatSample = await schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/on-beat.mp3');
+      const offBeatSample = await schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/off-beat.mp3');
       setSamples({ onBeat: onBeatSample, offBeat: offBeatSample });
     } catch (error) {
       console.error('Error loading metronome samples:', error);

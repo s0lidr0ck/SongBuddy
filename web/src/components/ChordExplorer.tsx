@@ -74,8 +74,8 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
     if (!audioContext) return null;
 
     const fileName = `${key}-${chordRoman}.mp3`;
-    // Properly encode the URL to handle special characters like °
-    const url = `/audio/chords/${encodeURIComponent(fileName)}`;
+    // Use S3 URL with proper encoding for special characters like °
+    const url = `https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/chords/${encodeURIComponent(fileName)}`;
 
     try {
       const response = await fetch(url);
