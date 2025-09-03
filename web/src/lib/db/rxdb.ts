@@ -22,13 +22,13 @@ addRxPlugin(RxDBUpdatePlugin);
 if (typeof window !== 'undefined' && !window.crypto?.subtle?.digest) {
   // Simple polyfill for development
   if (!window.crypto) {
-    window.crypto = {} as Crypto;
+    (window as any).crypto = {} as Crypto;
   }
   if (!window.crypto.subtle) {
-    window.crypto.subtle = {} as SubtleCrypto;
+    (window.crypto as any).subtle = {} as SubtleCrypto;
   }
   if (!window.crypto.subtle.digest) {
-    window.crypto.subtle.digest = async (algorithm: string, data: ArrayBuffer) => {
+    (window.crypto.subtle as any).digest = async (algorithm: string, data: ArrayBuffer) => {
       // Simple hash function for development
       const encoder = new TextEncoder();
       const str = new TextDecoder().decode(data);
