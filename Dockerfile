@@ -37,8 +37,7 @@ ENV NODE_ENV production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy public assets
-COPY --from=builder /app/public ./public
+# Note: Next.js standalone builds handle public assets automatically
 
 # Set the correct permission for prerender cache
 RUN mkdir .next
