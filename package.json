@@ -1,0 +1,26 @@
+{
+  "name": "songbuddy",
+  "version": "1.0.0",
+  "description": "Offline Christian songwriting companion PWA",
+  "scripts": {
+    "dev": "cd web && npm run dev",
+    "build": "cd web && npm run build", 
+    "start": "cd web && npm run start",
+    "lint": "cd web && npm run lint",
+    "install-deps": "cd web && npm install"
+  },
+  "keywords": [
+    "songwriting",
+    "christian",
+    "pwa",
+    "offline",
+    "bible",
+    "music"
+  ],
+  "author": "SongBuddy Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/songbuddy.git"
+  }
+}
