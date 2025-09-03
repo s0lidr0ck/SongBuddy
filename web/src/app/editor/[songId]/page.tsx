@@ -239,7 +239,7 @@ export default function EditorPage() {
       }
       
       setSong({ ...song, title: newTitle, updated_at: now });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating title:', error);
       if (error.code === 'CONFLICT') {
         console.log('Title update conflict detected, reloading song...');
