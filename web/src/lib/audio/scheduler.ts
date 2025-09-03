@@ -1,7 +1,7 @@
 export class AudioScheduler {
   private id: string;
   public audioContext!: AudioContext;
-  private intervalId: number | null = null;
+  private intervalId: NodeJS.Timeout | null = null;
   public callbacks: ((time: number, step: number) => void)[] = [];
   private bpm: number = 120.0;
   private nextNoteTime: number = 0.0;
