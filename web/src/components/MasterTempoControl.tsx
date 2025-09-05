@@ -9,9 +9,37 @@ interface MasterTempoControlProps {
 
 const MasterTempoControl: React.FC<MasterTempoControlProps> = ({ className = '' }) => {
   const { bpm, setBpm, isPlaying, timeSignature, setTimeSignature } = useTransport();
+  const [tapTimes, setTapTimes] = useState<number[]>([]);
 
   const handleBpmChange = (newBpm: number) => {
     setBpm(Math.max(60, Math.min(200, newBpm)));
+  };
+
+  const handleTapTempo = () => {
+    const now = Date.now();
+    const newTapTimes = [...tapTimes, now].slice(-4); // Keep only last 4 taps
+    setTapTimes(newTapTimes);
+
+    if (newTapTimes.length >= 2) {
+      // Calculate average interval between taps
+      const intervals = [];
+      for (let i = 1; i < newTapTimes.length; i++) {
+        intervals.push(newTapTimes[i] - newTapTimes[i - 1]);
+      }
+      
+      const averageInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const calculatedBpm = Math.round(60000 / averageInterval); // Convert ms to BPM
+      
+      // Only update if the BPM is reasonable (between 60-200)
+      if (calculatedBpm >= 60 && calculatedBpm <= 200) {
+        setBpm(calculatedBpm);
+      }
+    }
+
+    // Clear tap times after 3 seconds of no tapping
+    setTimeout(() => {
+      setTapTimes(prev => prev.filter(time => Date.now() - time < 3000));
+    }, 3000);
   };
 
   const quickTempos = [60, 72, 90, 120, 140, 160];
@@ -67,6 +95,15 @@ const MasterTempoControl: React.FC<MasterTempoControlProps> = ({ className = '' 
               −10
             </button>
           </div>
+          
+          {/* Tap Tempo */}
+          <button
+            onClick={handleTapTempo}
+            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors font-medium"
+            title="Tap to set tempo"
+          >
+            Tap Tempo
+          </button>
         </div>
 
         {/* BPM Slider */}
