@@ -8,7 +8,7 @@ interface MasterTempoControlProps {
 }
 
 const MasterTempoControl: React.FC<MasterTempoControlProps> = ({ className = '' }) => {
-  const { bpm, setBpm, isPlaying } = useTransport();
+  const { bpm, setBpm, isPlaying, timeSignature, setTimeSignature } = useTransport();
 
   const handleBpmChange = (newBpm: number) => {
     setBpm(Math.max(60, Math.min(200, newBpm)));
@@ -24,11 +24,18 @@ const MasterTempoControl: React.FC<MasterTempoControlProps> = ({ className = '' 
       </h2>
       
       <div className="flex items-center justify-between">
-        {/* BPM Display and Controls */}
-        <div className="flex items-center gap-4">
+        {/* BPM and Time Signature Display */}
+        <div className="flex items-center gap-6">
           <div className="text-center">
             <div className="text-4xl font-bold text-blue-600 mb-1">{bpm}</div>
             <div className="text-sm text-gray-500 font-medium">BPM</div>
+          </div>
+          
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600 mb-1">
+              {timeSignature.numerator}/{timeSignature.denominator}
+            </div>
+            <div className="text-sm text-gray-500 font-medium">Time</div>
           </div>
           
           <div className="flex flex-col gap-2">
@@ -79,23 +86,54 @@ const MasterTempoControl: React.FC<MasterTempoControlProps> = ({ className = '' 
           </div>
         </div>
 
-        {/* Quick Tempo Presets */}
-        <div className="flex flex-wrap gap-2">
-          {quickTempos.map((tempo) => (
+        {/* Quick Tempo Presets and Time Signature */}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            <div className="text-sm font-medium text-gray-600 mb-1">Quick BPM:</div>
+            {quickTempos.map((tempo) => (
+              <button
+                key={tempo}
+                onClick={() => handleBpmChange(tempo)}
+                className={`
+                  px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                  ${bpm === tempo
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }
+                `}
+              >
+                {tempo}
+              </button>
+            ))}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-medium text-gray-600">Time Signature:</div>
             <button
-              key={tempo}
-              onClick={() => handleBpmChange(tempo)}
+              onClick={() => setTimeSignature({ numerator: 4, denominator: 4 })}
               className={`
                 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                ${bpm === tempo
-                  ? 'bg-blue-500 text-white'
+                ${timeSignature.numerator === 4 && timeSignature.denominator === 4
+                  ? 'bg-green-500 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }
               `}
             >
-              {tempo}
+              4/4
             </button>
-          ))}
+            <button
+              onClick={() => setTimeSignature({ numerator: 3, denominator: 4 })}
+              className={`
+                px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                ${timeSignature.numerator === 3 && timeSignature.denominator === 4
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }
+              `}
+            >
+              3/4
+            </button>
+          </div>
         </div>
       </div>
 

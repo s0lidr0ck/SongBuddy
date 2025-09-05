@@ -203,10 +203,10 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
   };
 
   // Update chord duration
-  const updateChordDuration = (index: number, multiplier: number) => {
+  const updateChordDuration = (index: number, change: number) => {
     setProgression(prev => prev.map((chord, i) => 
       i === index 
-        ? { ...chord, duration: Math.max(0.5, Math.min(8, chord.duration * multiplier)) }
+        ? { ...chord, duration: Math.max(1, Math.min(8, chord.duration + change)) }
         : chord
     ));
   };
@@ -460,34 +460,28 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
                   {/* Duration display and controls */}
                   <div className="flex items-center gap-1 text-xs">
                     <button
-                      onClick={() => updateChordDuration(index, 0.5)}
-                      disabled={chord.duration <= 0.5}
+                      onClick={() => updateChordDuration(index, -1)}
+                      disabled={chord.duration <= 1}
                       className="w-5 h-5 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded text-xs font-bold"
-                      title="Half duration"
+                      title="Decrease by 1 beat"
                     >
-                      ÷2
+                      -1
                     </button>
                     <span className="mx-1 font-medium min-w-[2rem] text-center">
-                      {chord.duration === 0.5 ? '½' : 
-                       chord.duration === 1 ? '1' :
-                       chord.duration === 2 ? '2' :
-                       chord.duration === 4 ? '4' :
-                       chord.duration === 8 ? '8' : chord.duration}
+                      {chord.duration}
                     </span>
                     <button
-                      onClick={() => updateChordDuration(index, 2)}
+                      onClick={() => updateChordDuration(index, 1)}
                       disabled={chord.duration >= 8}
                       className="w-5 h-5 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded text-xs font-bold"
-                      title="Double duration"
+                      title="Increase by 1 beat"
                     >
-                      ×2
+                      +1
                     </button>
                   </div>
                   
                   <div className="text-xs text-gray-500">
-                    {chord.duration === 0.5 ? 'half beat' :
-                     chord.duration === 1 ? '1 beat' :
-                     `${chord.duration} beats`}
+                    {chord.duration === 1 ? '1 beat' : `${chord.duration} beats`}
                   </div>
                 </div>
               ))}

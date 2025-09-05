@@ -5,6 +5,7 @@ import Step808 from '@/components/Step808';
 import Piano from '@/components/Piano';
 import ChordExplorer from '@/components/ChordExplorer';
 import MasterTempoControl from '@/components/MasterTempoControl';
+import MultitrackMixer from '@/components/MultitrackMixer';
 
 export default function LabPage() {
   return (
@@ -27,9 +28,14 @@ export default function LabPage() {
           <Step808 />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
           <Piano />
           <ChordExplorer />
+        </div>
+
+        {/* Multitrack Mixer */}
+        <div className="mb-8">
+          <MultitrackMixer />
         </div>
 
         <div className="mt-8 bg-white rounded-lg shadow p-6">

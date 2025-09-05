@@ -7,6 +7,8 @@ type TransportState = {
   setClickEnabled: (enabled: boolean) => void;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
+  timeSignature: { numerator: number; denominator: number };
+  setTimeSignature: (timeSignature: { numerator: number; denominator: number }) => void;
 };
 
 export const useTransport = create<TransportState>((set) => ({
@@ -15,7 +17,9 @@ export const useTransport = create<TransportState>((set) => ({
   clickEnabled: true,
   setClickEnabled: (clickEnabled) => set({ clickEnabled }),
   isPlaying: false,
-  setIsPlaying: (isPlaying) => set({ isPlaying })
+  setIsPlaying: (isPlaying) => set({ isPlaying }),
+  timeSignature: { numerator: 4, denominator: 4 },
+  setTimeSignature: (timeSignature) => set({ timeSignature })
 }));
 
 
