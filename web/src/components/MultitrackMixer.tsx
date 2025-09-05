@@ -15,31 +15,73 @@ interface ChordTrack {
   enabled: boolean;
 }
 
+interface DrumTrack {
+  name: string;
+  pattern: number[]; // Array of 0s and 1s for each step
+  volume: number;
+  enabled: boolean;
+  color: string;
+}
+
 const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => {
   const { bpm, timeSignature, isPlaying, setIsPlaying } = useTransport();
   const [scheduler, setScheduler] = useState<AudioScheduler | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isLooping, setIsLooping] = useState(true);
 
-  // Calculate steps based on time signature (1 chord per beat)
-  const getStepsPerBar = () => timeSignature.numerator;
+  // Calculate steps based on time signature (4 subdivisions per beat for drums, 1 per beat for chords)
+  const getDrumStepsPerBar = () => timeSignature.numerator * 4;
+  const getChordStepsPerBar = () => timeSignature.numerator;
   const [totalBars, setTotalBars] = useState(4);
-  const totalSteps = getStepsPerBar() * totalBars;
+  const drumSteps = getDrumStepsPerBar() * totalBars;
+  const chordSteps = getChordStepsPerBar() * totalBars;
 
   // Available chords for the current key (C major for now)
   const availableChords = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', ''];
+
+  // Initialize drum tracks (like in Step808)
+  const [drumTracks, setDrumTracks] = useState<DrumTrack[]>([
+    {
+      name: 'Kick',
+      pattern: Array(drumSteps).fill(0).map((_, i) => i % 8 === 0 || i % 8 === 4 ? 1 : 0),
+      volume: 0.8,
+      enabled: true,
+      color: 'bg-red-500'
+    },
+    {
+      name: 'Snare',
+      pattern: Array(drumSteps).fill(0).map((_, i) => i % 8 === 2 || i % 8 === 6 ? 1 : 0),
+      volume: 0.7,
+      enabled: true,
+      color: 'bg-blue-500'
+    },
+    {
+      name: 'Hat',
+      pattern: Array(drumSteps).fill(1),
+      volume: 0.5,
+      enabled: true,
+      color: 'bg-yellow-500'
+    },
+    {
+      name: 'Ride',
+      pattern: Array(drumSteps).fill(0),
+      volume: 0.6,
+      enabled: true,
+      color: 'bg-green-500'
+    }
+  ]);
 
   // Initialize chord tracks
   const [chordTracks, setChordTracks] = useState<ChordTrack[]>([
     {
       name: 'Chord Track 1',
-      chords: Array(totalSteps).fill(''),
+      chords: Array(chordSteps).fill(''),
       volume: 0.8,
       enabled: true
     },
     {
       name: 'Chord Track 2', 
-      chords: Array(totalSteps).fill(''),
+      chords: Array(chordSteps).fill(''),
       volume: 0.7,
       enabled: true
     }
@@ -56,37 +98,59 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     }
   }, []);
 
-  // Update scheduler settings
+  // Update scheduler settings (use drum steps for timing)
   useEffect(() => {
     if (scheduler) {
       scheduler.setBPM(bpm);
-      scheduler.setTotalSteps(totalSteps);
+      scheduler.setTotalSteps(drumSteps);
     }
-  }, [bpm, totalSteps, scheduler]);
+  }, [bpm, drumSteps, scheduler]);
 
   // Update tracks when time signature or bar count changes
   useEffect(() => {
-    const newTotalSteps = getStepsPerBar() * totalBars;
+    const newDrumSteps = getDrumStepsPerBar() * totalBars;
+    const newChordSteps = getChordStepsPerBar() * totalBars;
+    
+    // Update drum tracks
+    setDrumTracks(prev => prev.map(track => ({
+      ...track,
+      pattern: track.pattern.length === newDrumSteps 
+        ? track.pattern 
+        : [...track.pattern, ...Array(Math.max(0, newDrumSteps - track.pattern.length)).fill(0)].slice(0, newDrumSteps)
+    })));
+    
+    // Update chord tracks
     setChordTracks(prev => prev.map(track => ({
       ...track,
-      chords: track.chords.length === newTotalSteps 
+      chords: track.chords.length === newChordSteps 
         ? track.chords 
-        : [...track.chords, ...Array(Math.max(0, newTotalSteps - track.chords.length)).fill('')].slice(0, newTotalSteps)
+        : [...track.chords, ...Array(Math.max(0, newChordSteps - track.chords.length)).fill('')].slice(0, newChordSteps)
     })));
   }, [timeSignature, totalBars]);
 
-  // Chord playback callback
-  const chordCallback = useCallback((time: number, stepIndex: number) => {
+  // Combined playback callback for drums and chords
+  const playbackCallback = useCallback((time: number, stepIndex: number) => {
     setCurrentStep(stepIndex);
     
-    // Play chords from all enabled tracks
-    chordTracks.forEach(track => {
-      if (track.enabled && track.chords[stepIndex] && track.chords[stepIndex] !== '') {
-        // TODO: Play chord audio - for now just log
-        console.log(`Playing ${track.chords[stepIndex]} at step ${stepIndex}`);
+    // Play drums at every step
+    drumTracks.forEach(track => {
+      if (track.enabled && track.pattern[stepIndex]) {
+        // TODO: Play drum sound - for now just log
+        console.log(`Playing ${track.name} at step ${stepIndex}`);
       }
     });
-  }, [chordTracks]);
+    
+    // Play chords only on beat boundaries (every 4th step)
+    if (stepIndex % 4 === 0) {
+      const chordStep = Math.floor(stepIndex / 4);
+      chordTracks.forEach(track => {
+        if (track.enabled && track.chords[chordStep] && track.chords[chordStep] !== '') {
+          // TODO: Play chord audio - for now just log
+          console.log(`Playing ${track.chords[chordStep]} at chord step ${chordStep}`);
+        }
+      });
+    }
+  }, [drumTracks, chordTracks]);
 
   // Start/stop playback
   useEffect(() => {
@@ -95,13 +159,13 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     if (isPlaying) {
       setCurrentStep(0);
       scheduler.callbacks = [];
-      scheduler.addCallback(chordCallback);
+      scheduler.addCallback(playbackCallback);
       scheduler.start();
     } else {
       scheduler.stop();
       setCurrentStep(0);
     }
-  }, [isPlaying, scheduler, chordCallback]);
+  }, [isPlaying, scheduler, playbackCallback]);
 
   const addBars = () => {
     setTotalBars(prev => prev + 4);
@@ -117,6 +181,28 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     setIsPlaying(!isPlaying);
   };
 
+  // Drum track functions
+  const toggleDrumStep = (trackIndex: number, stepIndex: number) => {
+    setDrumTracks(prev => prev.map((track, i) => 
+      i === trackIndex 
+        ? { ...track, pattern: track.pattern.map((value, j) => j === stepIndex ? (value ? 0 : 1) : value) }
+        : track
+    ));
+  };
+
+  const toggleDrumTrack = (trackIndex: number) => {
+    setDrumTracks(prev => prev.map((track, i) => 
+      i === trackIndex ? { ...track, enabled: !track.enabled } : track
+    ));
+  };
+
+  const setDrumTrackVolume = (trackIndex: number, volume: number) => {
+    setDrumTracks(prev => prev.map((track, i) => 
+      i === trackIndex ? { ...track, volume } : track
+    ));
+  };
+
+  // Chord track functions
   const setChordAtStep = (trackIndex: number, stepIndex: number, chord: string) => {
     setChordTracks(prev => prev.map((track, i) => 
       i === trackIndex 
@@ -125,13 +211,13 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     ));
   };
 
-  const toggleTrack = (trackIndex: number) => {
+  const toggleChordTrack = (trackIndex: number) => {
     setChordTracks(prev => prev.map((track, i) => 
       i === trackIndex ? { ...track, enabled: !track.enabled } : track
     ));
   };
 
-  const setTrackVolume = (trackIndex: number, volume: number) => {
+  const setChordTrackVolume = (trackIndex: number, volume: number) => {
     setChordTracks(prev => prev.map((track, i) => 
       i === trackIndex ? { ...track, volume } : track
     ));
@@ -148,7 +234,8 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
             <span className="font-medium">{totalBars} bars</span> • 
-            <span className="font-medium ml-1">{totalSteps} steps</span> • 
+            <span className="font-medium ml-1">{drumSteps} drum steps</span> • 
+            <span className="font-medium ml-1">{chordSteps} chord steps</span> • 
             <span className="font-medium ml-1">{timeSignature.numerator}/{timeSignature.denominator}</span>
           </div>
           
@@ -207,9 +294,10 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
         </div>
       </div>
 
-      {/* Chord Tracks */}
-      <div className="space-y-6">
-        {chordTracks.map((track, trackIndex) => (
+      {/* Drum Tracks */}
+      <div className="space-y-6 mb-8">
+        <h3 className="text-lg font-semibold text-gray-800">🥁 Drum Tracks</h3>
+        {drumTracks.map((track, trackIndex) => (
           <div key={trackIndex} className="space-y-2">
             {/* Track controls */}
             <div className="flex items-center justify-between">
@@ -218,11 +306,11 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
                   <input
                     type="checkbox"
                     checked={track.enabled}
-                    onChange={() => toggleTrack(trackIndex)}
+                    onChange={() => toggleDrumTrack(trackIndex)}
                     className="rounded"
                   />
-                  <span className="text-sm font-medium text-gray-700 min-w-[8rem]">
-                    🎸 {track.name}
+                  <span className="text-sm font-medium text-gray-700 min-w-[4rem]">
+                    {track.name}
                   </span>
                 </label>
                 <div className="flex items-center space-x-2">
@@ -233,7 +321,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
                     max="1"
                     step="0.1"
                     value={track.volume}
-                    onChange={(e) => setTrackVolume(trackIndex, parseFloat(e.target.value))}
+                    onChange={(e) => setDrumTrackVolume(trackIndex, parseFloat(e.target.value))}
                     className="w-20 h-2"
                   />
                   <span className="text-xs text-gray-500 w-10 text-right">
@@ -244,7 +332,68 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
             </div>
             
             {/* Step buttons row */}
-            <div className={`grid gap-1 ${getStepsPerBar() === 3 ? 'grid-cols-12' : 'grid-cols-16'}`}>
+            <div className={`grid gap-1 ${getDrumStepsPerBar() === 12 ? 'grid-cols-12' : 'grid-cols-16'}`}>
+              {track.pattern.map((active, stepIndex) => (
+                <button
+                  key={stepIndex}
+                  onClick={() => toggleDrumStep(trackIndex, stepIndex)}
+                  className={`w-12 h-12 rounded border-2 transition-transform ${
+                    active
+                      ? `${track.color} border-gray-400`
+                      : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                  } ${
+                    isPlaying && currentStep === stepIndex
+                      ? 'ring-2 ring-blue-400 scale-105'
+                      : ''
+                  }`}
+                >
+                  <div className="text-xs text-gray-600">{stepIndex + 1}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Chord Tracks */}
+      <div className="space-y-6">
+        <h3 className="text-lg font-semibold text-gray-800">🎸 Chord Tracks</h3>
+        {chordTracks.map((track, trackIndex) => (
+          <div key={trackIndex} className="space-y-2">
+            {/* Track controls */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={track.enabled}
+                    onChange={() => toggleChordTrack(trackIndex)}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-700 min-w-[8rem]">
+                    {track.name}
+                  </span>
+                </label>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">Vol:</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={track.volume}
+                    onChange={(e) => setChordTrackVolume(trackIndex, parseFloat(e.target.value))}
+                    className="w-20 h-2"
+                  />
+                  <span className="text-xs text-gray-500 w-10 text-right">
+                    {Math.round(track.volume * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Step buttons row */}
+            <div className={`grid gap-1 ${getChordStepsPerBar() === 3 ? 'grid-cols-12' : 'grid-cols-16'}`}>
               {track.chords.map((chord, stepIndex) => (
                 <div
                   key={stepIndex}
@@ -275,12 +424,12 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
             </div>
 
             {/* Bar markers */}
-            <div className={`grid gap-1 ${getStepsPerBar() === 3 ? 'grid-cols-12' : 'grid-cols-16'} mt-1`}>
-              {Array.from({ length: totalSteps }, (_, stepIndex) => (
+            <div className={`grid gap-1 ${getChordStepsPerBar() === 3 ? 'grid-cols-12' : 'grid-cols-16'} mt-1`}>
+              {Array.from({ length: chordSteps }, (_, stepIndex) => (
                 <div key={stepIndex} className="text-center">
-                  {stepIndex % getStepsPerBar() === 0 && (
+                  {stepIndex % getChordStepsPerBar() === 0 && (
                     <div className="text-xs text-gray-400 font-medium">
-                      Bar {Math.floor(stepIndex / getStepsPerBar()) + 1}
+                      Bar {Math.floor(stepIndex / getChordStepsPerBar()) + 1}
                     </div>
                   )}
                 </div>
