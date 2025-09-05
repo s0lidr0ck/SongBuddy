@@ -5,7 +5,7 @@ import { AudioScheduler } from '@/lib/audio/scheduler';
 import { useTransport } from '@/lib/audio/transport';
 
 export default function Metronome() {
-  const { bpm, setBpm, clickEnabled } = useTransport();
+  const { bpm, setBpm, clickEnabled, timeSignature } = useTransport();
   const [running, setRunning] = useState(false);
   const [scheduler, setScheduler] = useState<AudioScheduler | null>(null);
   const [samples, setSamples] = useState<{onBeat: AudioBuffer | null, offBeat: AudioBuffer | null}>({ onBeat: null, offBeat: null });
@@ -43,7 +43,8 @@ export default function Metronome() {
 
   const metronomeCallback = useCallback((time: number) => {
     if (!scheduler || !clickEnabled) return;
-    const beat = (beatIndexRef.current % 4) + 1;
+    const beatsPerBar = timeSignature.numerator;
+    const beat = (beatIndexRef.current % beatsPerBar) + 1;
     if (beat === 1 && samples.onBeat) {
       scheduler.playSample(samples.onBeat, time, 0.7);
     } else if (samples.offBeat) {
@@ -52,8 +53,8 @@ export default function Metronome() {
       scheduler.playClick(time);
     }
     setCurrentBeat(beat);
-    beatIndexRef.current = (beatIndexRef.current + 1) % 4;
-  }, [clickEnabled, scheduler, samples]);
+    beatIndexRef.current = (beatIndexRef.current + 1) % beatsPerBar;
+  }, [clickEnabled, scheduler, samples, timeSignature]);
 
   // Keep BPM updated on scheduler
   useEffect(() => {
@@ -61,6 +62,12 @@ export default function Metronome() {
       scheduler.setBPM(bpm);
     }
   }, [bpm, scheduler]);
+
+  // Reset beat when time signature changes
+  useEffect(() => {
+    beatIndexRef.current = 0;
+    setCurrentBeat(1);
+  }, [timeSignature]);
 
   // Start/stop only when running changes
   useEffect(() => {
@@ -106,7 +113,7 @@ export default function Metronome() {
       </div>
 
       <div className="flex items-center justify-center space-x-2 mb-8">
-        {[1, 2, 3, 4].map((beat) => (
+        {Array.from({ length: timeSignature.numerator }, (_, index) => index + 1).map((beat) => (
           <div
             key={beat}
             className={`w-4 h-4 rounded-full transition-colors ${
