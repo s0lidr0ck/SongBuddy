@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useTransport } from '@/lib/audio/transport';
 
 interface ChordExplorerProps {
   className?: string;
@@ -14,6 +15,7 @@ interface Chord {
 }
 
 const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
+  const { bpm, setIsPlaying } = useTransport();
   const [selectedKey, setSelectedKey] = useState('C');
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [playingChord, setPlayingChord] = useState<string | null>(null);
@@ -25,7 +27,6 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
   const [progression, setProgression] = useState<Chord[]>([]);
   const [isPlayingProgression, setIsPlayingProgression] = useState(false);
   const [currentChordIndex, setCurrentChordIndex] = useState(-1);
-  const [progressionBPM, setProgressionBPM] = useState(120);
   const [progressionLoop, setProgressionLoop] = useState(true);
   const [progressionTimeoutId, setProgressionTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
@@ -207,6 +208,7 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
     if (progression.length === 0 || isPlayingProgression) return;
     
     setIsPlayingProgression(true);
+    setIsPlaying(true);
     setCurrentChordIndex(0);
     playProgressionChord(0);
   };
@@ -218,6 +220,7 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
       setProgressionTimeoutId(null);
     }
     setIsPlayingProgression(false);
+    setIsPlaying(false);
     setCurrentChordIndex(-1);
     stopCurrentAudio();
   };
@@ -245,7 +248,7 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
     await playChordAudio(chord);
 
     // Calculate time for next chord (quarter note duration)
-    const quarterNoteDuration = (60 / progressionBPM) * 1000; // Convert to milliseconds
+    const quarterNoteDuration = (60 / bpm) * 1000; // Convert to milliseconds
     
     const timeoutId = setTimeout(() => {
       playProgressionChord(index + 1);
@@ -392,17 +395,10 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-800">Chord Progression</h3>
           <div className="flex items-center gap-4">
-            {/* BPM Control */}
+            {/* Current BPM Display */}
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600">BPM:</label>
-              <input
-                type="number"
-                min="60"
-                max="200"
-                value={progressionBPM}
-                onChange={(e) => setProgressionBPM(Number(e.target.value))}
-                className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
-              />
+              <span className="text-sm font-medium text-gray-600">Tempo:</span>
+              <span className="text-lg font-bold text-blue-600">{bpm} BPM</span>
             </div>
             
             {/* Loop Toggle */}

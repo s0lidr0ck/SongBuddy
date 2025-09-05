@@ -4,6 +4,7 @@ import Metronome from '@/components/Metronome';
 import Step808 from '@/components/Step808';
 import Piano from '@/components/Piano';
 import ChordExplorer from '@/components/ChordExplorer';
+import MasterTempoControl from '@/components/MasterTempoControl';
 
 export default function LabPage() {
   return (
@@ -14,6 +15,11 @@ export default function LabPage() {
           <p className="text-gray-600">
             Explore music with our collection of tools: metronome, sequencer, piano, and chord explorer.
           </p>
+        </div>
+
+        {/* Master Tempo Control */}
+        <div className="mb-8">
+          <MasterTempoControl />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
@@ -68,6 +74,5 @@ export default function LabPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }
