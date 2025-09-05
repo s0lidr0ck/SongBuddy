@@ -9,6 +9,7 @@ export class AudioScheduler {
   private noteLength: number = 0.05; // seconds
   private isPlaying: boolean = false;
   private currentStep: number = 0;
+  private totalSteps: number = 16; // Default to 16 steps (4/4 time)
 
   constructor() {
     this.id = Math.random().toString(36).substring(2, 11);
@@ -20,6 +21,10 @@ export class AudioScheduler {
 
   setBPM(bpm: number) {
     this.bpm = bpm;
+  }
+
+  setTotalSteps(steps: number) {
+    this.totalSteps = steps;
   }
 
   addCallback(callback: (time: number, step: number) => void) {
@@ -81,7 +86,7 @@ export class AudioScheduler {
       // Advance time and step
       const secondsPerBeat = 60.0 / this.bpm;
       this.nextNoteTime += secondsPerBeat;
-      this.currentStep = (this.currentStep + 1) % 8;
+      this.currentStep = (this.currentStep + 1) % this.totalSteps;
     }
   }
 

@@ -30,15 +30,20 @@ const sampleBuffers: { [key: string]: AudioBuffer | null } = {
 };
 
 export default function Step808() {
-  const { bpm, setBpm, clickEnabled, setClickEnabled } = useTransport();
+  const { bpm, setBpm, clickEnabled, setClickEnabled, timeSignature } = useTransport();
   const [running, setRunning] = useState(false);
   const [scheduler, setScheduler] = useState<AudioScheduler | null>(null);
-  const [pattern, setPattern] = useState<Pattern>({
-    kick: [1, 0, 0, 0, 1, 0, 0, 0],
-    snare: [0, 0, 1, 0, 0, 0, 1, 0],
-    hat: [1, 1, 1, 1, 1, 1, 1, 1],
-    ride: [0, 0, 0, 0, 0, 0, 0, 0]
+  // Calculate steps based on time signature (4 subdivisions per beat)
+  const getStepsPerBar = () => timeSignature.numerator * 4;
+  
+  const createDefaultPattern = (steps: number): Pattern => ({
+    kick: Array(steps).fill(0).map((_, i) => i % 8 === 0 || i % 8 === 4 ? 1 : 0),
+    snare: Array(steps).fill(0).map((_, i) => i % 8 === 2 || i % 8 === 6 ? 1 : 0),
+    hat: Array(steps).fill(1),
+    ride: Array(steps).fill(0)
   });
+
+  const [pattern, setPattern] = useState<Pattern>(createDefaultPattern(getStepsPerBar()));
   const [currentStep, setCurrentStep] = useState(0);
   const [volumes, setVolumes] = useState({
     kick: 0.8,
@@ -46,6 +51,13 @@ export default function Step808() {
     hat: 0.5,
     ride: 0.6
   });
+
+  // Update pattern when time signature changes
+  useEffect(() => {
+    const newSteps = getStepsPerBar();
+    setPattern(createDefaultPattern(newSteps));
+    setCurrentStep(0);
+  }, [timeSignature]);
   const patternRef = useRef(pattern);
   const currentStepRef = useRef(0);
   const pendingTimersRef = useRef<number[]>([]);
@@ -326,13 +338,14 @@ export default function Step808() {
     }
   }, [scheduler, createSyntheticKick, createSyntheticSnare, createSyntheticHat, createSyntheticRide]);
 
-  // Keep BPM updated on scheduler
+  // Keep BPM and steps updated on scheduler
   useEffect(() => {
     if (scheduler) {
       scheduler.setBPM(bpm);
+      scheduler.setTotalSteps(getStepsPerBar());
     }
     secondsPerBeatRef.current = 60 / Math.max(40, Math.min(200, bpm));
-  }, [bpm, scheduler]);
+  }, [bpm, scheduler, timeSignature]);
 
   // Start/stop only when running changes
   useEffect(() => {
@@ -372,11 +385,12 @@ export default function Step808() {
   };
 
   const clearPattern = () => {
+    const steps = getStepsPerBar();
     setPattern({
-      kick: [0, 0, 0, 0, 0, 0, 0, 0],
-      snare: [0, 0, 0, 0, 0, 0, 0, 0],
-      hat: [0, 0, 0, 0, 0, 0, 0, 0],
-      ride: [0, 0, 0, 0, 0, 0, 0, 0]
+      kick: Array(steps).fill(0),
+      snare: Array(steps).fill(0),
+      hat: Array(steps).fill(0),
+      ride: Array(steps).fill(0)
     });
   };
 
@@ -546,7 +560,7 @@ export default function Step808() {
             </div>
             
             {/* Step buttons row */}
-            <div className="grid grid-cols-8 gap-1">
+            <div className={`grid gap-1 ${getStepsPerBar() === 12 ? 'grid-cols-12' : 'grid-cols-16'}`}>
               {steps.map((active: number, stepIndex: number) => (
                 <button
                   key={stepIndex}
