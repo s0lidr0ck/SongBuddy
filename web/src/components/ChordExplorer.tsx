@@ -23,8 +23,12 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
   const [currentSource, setCurrentSource] = useState<AudioBufferSourceNode | null>(null);
   const [currentOscillators, setCurrentOscillators] = useState<OscillatorNode[]>([]);
   
-  // Chord progression state
-  const [progression, setProgression] = useState<Chord[]>([]);
+  // Chord progression state with durations
+  interface ProgressionChord extends Chord {
+    duration: number; // in beats (1, 2, 4, 8)
+  }
+  
+  const [progression, setProgression] = useState<ProgressionChord[]>([]);
   const [isPlayingProgression, setIsPlayingProgression] = useState(false);
   const [currentChordIndex, setCurrentChordIndex] = useState(-1);
   const [progressionLoop, setProgressionLoop] = useState(true);
@@ -187,14 +191,24 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
     setPlayingChord(null);
   };
 
-  // Add chord to progression
+  // Add chord to progression with default 4-beat duration
   const addChordToProgression = (chord: Chord) => {
-    setProgression(prev => [...prev, chord]);
+    const progressionChord: ProgressionChord = { ...chord, duration: 4 };
+    setProgression(prev => [...prev, progressionChord]);
   };
 
   // Remove chord from progression
   const removeChordFromProgression = (index: number) => {
     setProgression(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Update chord duration
+  const updateChordDuration = (index: number, multiplier: number) => {
+    setProgression(prev => prev.map((chord, i) => 
+      i === index 
+        ? { ...chord, duration: Math.max(0.5, Math.min(8, chord.duration * multiplier)) }
+        : chord
+    ));
   };
 
   // Clear progression
@@ -247,12 +261,13 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
     setCurrentChordIndex(index);
     await playChordAudio(chord);
 
-    // Calculate time for next chord (quarter note duration)
-    const quarterNoteDuration = (60 / bpm) * 1000; // Convert to milliseconds
+    // Calculate time for next chord based on chord duration (in beats)
+    const beatDuration = (60 / bpm) * 1000; // One beat in milliseconds
+    const chordDuration = beatDuration * chord.duration;
     
     const timeoutId = setTimeout(() => {
       playProgressionChord(index + 1);
-    }, quarterNoteDuration);
+    }, chordDuration);
     
     setProgressionTimeoutId(timeoutId);
   };
@@ -424,21 +439,56 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
                 <div
                   key={`${chord.romanNumeral}-${index}`}
                   className={`
-                    flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-colors
+                    flex flex-col items-center gap-1 px-3 py-2 rounded-lg border-2 transition-colors
                     ${currentChordIndex === index && isPlayingProgression
                       ? 'bg-blue-500 text-white border-blue-600'
                       : 'bg-white text-gray-800 border-gray-300'
                     }
                   `}
                 >
-                  <span className="font-bold">{chord.romanNumeral}</span>
-                  <button
-                    onClick={() => removeChordFromProgression(index)}
-                    className="text-red-500 hover:text-red-700 text-sm"
-                    title="Remove chord"
-                  >
-                    ×
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{chord.romanNumeral}</span>
+                    <button
+                      onClick={() => removeChordFromProgression(index)}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                      title="Remove chord"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  
+                  {/* Duration display and controls */}
+                  <div className="flex items-center gap-1 text-xs">
+                    <button
+                      onClick={() => updateChordDuration(index, 0.5)}
+                      disabled={chord.duration <= 0.5}
+                      className="w-5 h-5 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded text-xs font-bold"
+                      title="Half duration"
+                    >
+                      ÷2
+                    </button>
+                    <span className="mx-1 font-medium min-w-[2rem] text-center">
+                      {chord.duration === 0.5 ? '½' : 
+                       chord.duration === 1 ? '1' :
+                       chord.duration === 2 ? '2' :
+                       chord.duration === 4 ? '4' :
+                       chord.duration === 8 ? '8' : chord.duration}
+                    </span>
+                    <button
+                      onClick={() => updateChordDuration(index, 2)}
+                      disabled={chord.duration >= 8}
+                      className="w-5 h-5 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded text-xs font-bold"
+                      title="Double duration"
+                    >
+                      ×2
+                    </button>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500">
+                    {chord.duration === 0.5 ? 'half beat' :
+                     chord.duration === 1 ? '1 beat' :
+                     `${chord.duration} beats`}
+                  </div>
                 </div>
               ))}
             </div>
