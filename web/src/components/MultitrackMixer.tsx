@@ -439,149 +439,52 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
       </div>
 
 
-      {/* Drum Tracks */}
-      <div className="space-y-6 mb-8">
-        <h3 className="text-lg font-semibold text-gray-800">🥁 Drum Tracks</h3>
-        {drumTracks.map((track, trackIndex) => (
-          <div key={trackIndex} className="space-y-2">
-            {/* Track controls */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <label className="flex items-center gap-2">
+      {/* Synchronized Track Container */}
+      <div className="space-y-3">
+        {/* Track Labels Column */}
+        <div className="flex">
+          <div className="w-32 flex-shrink-0 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-800 h-8 flex items-center">🥁 Drums</h3>
+            {drumTracks.map((track, trackIndex) => (
+              <div key={trackIndex} className="h-10 flex items-center">
+                <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
                     checked={track.enabled}
                     onChange={() => toggleDrumTrack(trackIndex)}
-                    className="rounded"
+                    className="rounded w-3 h-3"
                   />
-                  <span className="text-sm font-medium text-gray-700 min-w-[4rem]">
+                  <span className="text-xs font-medium text-gray-700">
                     {track.name}
                   </span>
                 </label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">Vol:</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={track.volume}
-                    onChange={(e) => setDrumTrackVolume(trackIndex, parseFloat(e.target.value))}
-                    className="w-20 h-2"
-                  />
-                  <span className="text-xs text-gray-500 w-10 text-right">
-                    {Math.round(track.volume * 100)}%
-                  </span>
-                </div>
               </div>
-            </div>
+            ))}
             
-            {/* Step buttons row - Horizontal scrolling */}
-            <div className="overflow-x-auto">
-              <div className="flex gap-1 pb-2" style={{ minWidth: `${track.pattern.length * 52}px` }}>
-                {track.pattern.map((active, stepIndex) => (
-                  <button
-                    key={stepIndex}
-                    onClick={() => toggleDrumStep(trackIndex, stepIndex)}
-                    className={`w-12 h-12 flex-shrink-0 rounded border-2 transition-transform ${
-                      active
-                        ? `${track.color} border-gray-400`
-                        : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                    } ${
-                      isPlaying && currentStep === stepIndex
-                        ? 'ring-2 ring-blue-400 scale-105'
-                        : ''
-                    }`}
-                  >
-                    <div className="text-xs text-gray-600">{stepIndex + 1}</div>
-                  </button>
-                ))}
-              </div>
-              
-              {/* Bar markers */}
-              <div className="flex gap-1" style={{ minWidth: `${track.pattern.length * 52}px` }}>
-                {Array.from({ length: drumSteps }, (_, stepIndex) => (
-                  <div key={stepIndex} className="w-12 flex-shrink-0 text-center">
-                    {stepIndex % timeSignature.numerator === 0 && (
-                      <div className="text-xs text-gray-400 font-medium">
-                        Bar {Math.floor(stepIndex / timeSignature.numerator) + 1}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Chord Tracks */}
-      <div className="space-y-6">
-        <h3 className="text-lg font-semibold text-gray-800">🎸 Chord Tracks</h3>
-        {chordTracks.map((track, trackIndex) => (
-          <div key={trackIndex} className="space-y-2">
-            {/* Track controls */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <label className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-gray-800 h-8 flex items-center pt-2">🎸 Chords</h3>
+            {chordTracks.map((track, trackIndex) => (
+              <div key={trackIndex} className="h-10 flex items-center">
+                <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
                     checked={track.enabled}
                     onChange={() => toggleChordTrack(trackIndex)}
-                    className="rounded"
+                    className="rounded w-3 h-3"
                   />
-                  <span className="text-sm font-medium text-gray-700 min-w-[8rem]">
+                  <span className="text-xs font-medium text-gray-700">
                     {track.name}
                   </span>
                 </label>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">Vol:</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={track.volume}
-                    onChange={(e) => setChordTrackVolume(trackIndex, parseFloat(e.target.value))}
-                    className="w-20 h-2"
-                  />
-                  <span className="text-xs text-gray-500 w-10 text-right">
-                    {Math.round(track.volume * 100)}%
-                  </span>
-                </div>
               </div>
-            </div>
-            
-            {/* Step buttons row - Horizontal scrolling */}
-            <div className="overflow-x-auto">
-              <div className="flex gap-1 pb-2" style={{ minWidth: `${track.chords.length * 52}px` }}>
-                {track.chords.map((chord, stepIndex) => (
-                  <button
-                    key={stepIndex}
-                    className={`relative w-12 h-12 flex-shrink-0 rounded border-2 transition-transform ${
-                      chord
-                        ? 'bg-blue-500 border-blue-600 text-white hover:bg-blue-400'
-                        : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                    } ${
-                      isPlaying && currentStep === stepIndex
-                        ? 'ring-2 ring-blue-400 scale-105'
-                        : ''
-                    }`}
-                    onClick={() => chord ? setChordAtStep(trackIndex, stepIndex, '') : openChordSelector(trackIndex, stepIndex)}
-                    title={chord ? `Click to clear ${chord}` : 'Click to add chord'}
-                  >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-xs font-bold text-center">
-                        {chord || '+'}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+            ))}
+          </div>
 
-              {/* Bar markers */}
-              <div className="flex gap-1" style={{ minWidth: `${track.chords.length * 52}px` }}>
-                {Array.from({ length: chordSteps }, (_, stepIndex) => (
+          {/* Synchronized Scrolling Steps */}
+          <div className="flex-1 overflow-x-auto">
+            <div className="space-y-3" style={{ minWidth: `${Math.max(drumSteps, chordSteps) * 52}px` }}>
+              {/* Bar markers row */}
+              <div className="h-8 flex gap-1">
+                {Array.from({ length: Math.max(drumSteps, chordSteps) }, (_, stepIndex) => (
                   <div key={stepIndex} className="w-12 flex-shrink-0 text-center">
                     {stepIndex % timeSignature.numerator === 0 && (
                       <div className="text-xs text-gray-400 font-medium">
@@ -591,21 +494,103 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
                   </div>
                 ))}
               </div>
+
+              {/* Drum track steps */}
+              {drumTracks.map((track, trackIndex) => (
+                <div key={trackIndex} className="h-10 flex gap-1 items-center">
+                  {track.pattern.map((active, stepIndex) => (
+                    <button
+                      key={stepIndex}
+                      onClick={() => toggleDrumStep(trackIndex, stepIndex)}
+                      className={`w-12 h-8 flex-shrink-0 rounded border transition-transform ${
+                        active
+                          ? `${track.color} border-gray-400 text-white`
+                          : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                      } ${
+                        isPlaying && currentStep === stepIndex
+                          ? 'ring-1 ring-blue-400 scale-105'
+                          : ''
+                      }`}
+                    >
+                      <div className="text-xs text-center w-full">{stepIndex + 1}</div>
+                    </button>
+                  ))}
+                </div>
+              ))}
+
+              {/* Spacer between drum and chord tracks */}
+              <div className="h-2"></div>
+
+              {/* Chord track steps */}
+              {chordTracks.map((track, trackIndex) => (
+                <div key={trackIndex} className="h-10 flex gap-1 items-center">
+                  {track.chords.map((chord, stepIndex) => (
+                    <button
+                      key={stepIndex}
+                      className={`relative w-12 h-8 flex-shrink-0 rounded border transition-transform ${
+                        chord
+                          ? 'bg-blue-500 border-blue-600 text-white hover:bg-blue-400'
+                          : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                      } ${
+                        isPlaying && currentStep === stepIndex
+                          ? 'ring-1 ring-blue-400 scale-105'
+                          : ''
+                      }`}
+                      onClick={() => chord ? setChordAtStep(trackIndex, stepIndex, '') : openChordSelector(trackIndex, stepIndex)}
+                      title={chord ? `Click to clear ${chord}` : 'Click to add chord'}
+                    >
+                      <div className="text-xs font-bold text-center w-full">
+                        {chord || '+'}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
-        ))}
+        </div>
+
+        {/* Compact Volume Controls */}
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            {[...drumTracks, ...chordTracks].map((track, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="min-w-[3rem] text-gray-600">
+                  {'color' in track ? track.name : track.name}:
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={track.volume}
+                  onChange={(e) => {
+                    const newVolume = parseFloat(e.target.value);
+                    if ('color' in track) {
+                      setDrumTrackVolume(drumTracks.indexOf(track as DrumTrack), newVolume);
+                    } else {
+                      setChordTrackVolume(chordTracks.indexOf(track as ChordTrack), newVolume);
+                    }
+                  }}
+                  className="flex-1 h-1"
+                />
+                <span className="text-gray-500 w-8 text-right">
+                  {Math.round(track.volume * 100)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Instructions */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
         <h3 className="text-sm font-medium text-blue-800 mb-2">How to Use:</h3>
         <ul className="text-xs text-blue-700 space-y-1">
-          <li>• Click drum step buttons to toggle drum hits on/off</li>
-          <li>• Click empty chord steps (+) to select a chord</li>
-          <li>• Click filled chord steps to clear them</li>
-          <li>• Each step represents one beat in your progression</li>
-          <li>• Use multiple tracks to layer different progressions</li>
-          <li>• Press Play to hear everything loop together</li>
+          <li>• Click drum steps to toggle hits • Click chord steps (+) to select/clear</li>
+          <li>• Scroll horizontally to see all bars • Add more bars with "Add Bars" button</li>
+          <li>• All tracks scroll together like a DAW timeline</li>
+          <li>• Each step = 1 beat • Volume controls at bottom</li>
         </ul>
       </div>
 
