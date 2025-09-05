@@ -28,13 +28,21 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   const [scheduler, setScheduler] = useState<AudioScheduler | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isLooping, setIsLooping] = useState(true);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  const [audioBuffers, setAudioBuffers] = useState<Map<string, AudioBuffer>>(new Map());
+  
+  // Chord selection modal state
+  const [showChordSelector, setShowChordSelector] = useState(false);
+  const [selectedTrackIndex, setSelectedTrackIndex] = useState<number>(-1);
+  const [selectedStepIndex, setSelectedStepIndex] = useState<number>(-1);
 
-  // Calculate steps based on time signature (4 subdivisions per beat for drums, 1 per beat for chords)
-  const getDrumStepsPerBar = () => timeSignature.numerator * 4;
-  const getChordStepsPerBar = () => timeSignature.numerator;
-  const [totalBars, setTotalBars] = useState(4);
-  const drumSteps = getDrumStepsPerBar() * totalBars;
-  const chordSteps = getChordStepsPerBar() * totalBars;
+  // Calculate steps based on time signature 
+  // 4/4 time: 2 bars = 8 beats = 8 chord steps, 8 drum steps
+  // 3/4 time: 4 bars = 12 beats = 12 chord steps, 12 drum steps (to complete pattern)
+  const getDisplayBars = () => timeSignature.numerator === 3 ? 4 : 2;
+  const totalBeats = timeSignature.numerator * getDisplayBars();
+  const chordSteps = totalBeats; // 1 chord per beat
+  const drumSteps = totalBeats; // 1 drum step per beat (no subdivisions)
 
   // Available chords for the current key (C major for now)
   const availableChords = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', ''];
@@ -87,16 +95,69 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     }
   ]);
 
-  // Initialize scheduler
+  // Initialize scheduler and audio context
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (async () => {
         const newScheduler = new AudioScheduler();
         await newScheduler.init();
         setScheduler(newScheduler);
+        setAudioContext(newScheduler.audioContext);
+        
+        // Load drum samples
+        await loadDrumSamples(newScheduler);
+        // Load chord samples  
+        await loadChordSamples(newScheduler);
       })();
     }
   }, []);
+
+  // Load drum samples from S3
+  const loadDrumSamples = async (schedulerInstance: AudioScheduler) => {
+    try {
+      const [kick, snare, hat, ride] = await Promise.all([
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/kick.mp3'),
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/snare.mp3'),
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/hat.mp3'),
+        schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/ride.mp3')
+      ]);
+      
+      const newBuffers = new Map(audioBuffers);
+      if (kick) newBuffers.set('kick', kick);
+      if (snare) newBuffers.set('snare', snare);
+      if (hat) newBuffers.set('hat', hat);
+      if (ride) newBuffers.set('ride', ride);
+      setAudioBuffers(newBuffers);
+    } catch (error) {
+      console.error('Error loading drum samples:', error);
+    }
+  };
+
+  // Load chord samples from S3
+  const loadChordSamples = async (schedulerInstance: AudioScheduler) => {
+    try {
+      const chordNames = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
+      for (const chord of chordNames) {
+        const fileName = `C-${chord}.mp3`;
+        const url = `https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/chords/${encodeURIComponent(fileName)}`;
+        
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            const audioBuffer = await schedulerInstance.audioContext.decodeAudioData(arrayBuffer);
+            const newBuffers = new Map(audioBuffers);
+            newBuffers.set(chord, audioBuffer);
+            setAudioBuffers(newBuffers);
+          }
+        } catch (error) {
+          console.log(`Could not load chord: ${chord}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading chord samples:', error);
+    }
+  };
 
   // Update scheduler settings (use drum steps for timing)
   useEffect(() => {
@@ -106,10 +167,11 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     }
   }, [bpm, drumSteps, scheduler]);
 
-  // Update tracks when time signature or bar count changes
+  // Update tracks when time signature changes
   useEffect(() => {
-    const newDrumSteps = getDrumStepsPerBar() * totalBars;
-    const newChordSteps = getChordStepsPerBar() * totalBars;
+    const newTotalBeats = timeSignature.numerator * getDisplayBars();
+    const newDrumSteps = newTotalBeats; // 1 step per beat
+    const newChordSteps = newTotalBeats;
     
     // Update drum tracks
     setDrumTracks(prev => prev.map(track => ({
@@ -126,31 +188,32 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
         ? track.chords 
         : [...track.chords, ...Array(Math.max(0, newChordSteps - track.chords.length)).fill('')].slice(0, newChordSteps)
     })));
-  }, [timeSignature, totalBars]);
+  }, [timeSignature]);
 
   // Combined playback callback for drums and chords
   const playbackCallback = useCallback((time: number, stepIndex: number) => {
     setCurrentStep(stepIndex);
     
-    // Play drums at every step
+    // Play drums at every step (1 step per beat)
     drumTracks.forEach(track => {
-      if (track.enabled && track.pattern[stepIndex]) {
-        // TODO: Play drum sound - for now just log
-        console.log(`Playing ${track.name} at step ${stepIndex}`);
+      if (track.enabled && track.pattern[stepIndex] && scheduler) {
+        const drumBuffer = audioBuffers.get(track.name.toLowerCase());
+        if (drumBuffer) {
+          scheduler.playSample(drumBuffer, time, track.volume);
+        }
       }
     });
     
-    // Play chords only on beat boundaries (every 4th step)
-    if (stepIndex % 4 === 0) {
-      const chordStep = Math.floor(stepIndex / 4);
-      chordTracks.forEach(track => {
-        if (track.enabled && track.chords[chordStep] && track.chords[chordStep] !== '') {
-          // TODO: Play chord audio - for now just log
-          console.log(`Playing ${track.chords[chordStep]} at chord step ${chordStep}`);
+    // Play chords at every step (1 step per beat, same as drums)
+    chordTracks.forEach(track => {
+      if (track.enabled && track.chords[stepIndex] && track.chords[stepIndex] !== '') {
+        const chordBuffer = audioBuffers.get(track.chords[stepIndex]);
+        if (chordBuffer && scheduler) {
+          scheduler.playSample(chordBuffer, time, track.volume);
         }
-      });
-    }
-  }, [drumTracks, chordTracks]);
+      }
+    });
+  }, [drumTracks, chordTracks, scheduler, audioBuffers]);
 
   // Start/stop playback
   useEffect(() => {
@@ -166,16 +229,6 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
       setCurrentStep(0);
     }
   }, [isPlaying, scheduler, playbackCallback]);
-
-  const addBars = () => {
-    setTotalBars(prev => prev + 4);
-  };
-
-  const removeBars = () => {
-    if (totalBars > 4) {
-      setTotalBars(prev => prev - 4);
-    }
-  };
 
   const togglePlayback = () => {
     setIsPlaying(!isPlaying);
@@ -211,6 +264,23 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     ));
   };
 
+  // Open chord selector
+  const openChordSelector = (trackIndex: number, stepIndex: number) => {
+    setSelectedTrackIndex(trackIndex);
+    setSelectedStepIndex(stepIndex);
+    setShowChordSelector(true);
+  };
+
+  // Select chord from modal
+  const selectChord = (chord: string) => {
+    if (selectedTrackIndex >= 0 && selectedStepIndex >= 0) {
+      setChordAtStep(selectedTrackIndex, selectedStepIndex, chord);
+    }
+    setShowChordSelector(false);
+    setSelectedTrackIndex(-1);
+    setSelectedStepIndex(-1);
+  };
+
   const toggleChordTrack = (trackIndex: number) => {
     setChordTracks(prev => prev.map((track, i) => 
       i === trackIndex ? { ...track, enabled: !track.enabled } : track
@@ -233,7 +303,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
         
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-600">
-            <span className="font-medium">{totalBars} bars</span> • 
+            <span className="font-medium">{getDisplayBars()} bars</span> • 
             <span className="font-medium ml-1">{drumSteps} drum steps</span> • 
             <span className="font-medium ml-1">{chordSteps} chord steps</span> • 
             <span className="font-medium ml-1">{timeSignature.numerator}/{timeSignature.denominator}</span>
@@ -251,48 +321,9 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
           >
             {isPlaying ? '⏸ Stop' : '▶ Play'}
           </button>
-          
-          <div className="flex items-center gap-2">
-            <button
-              onClick={removeBars}
-              disabled={totalBars <= 4}
-              className="px-3 py-2 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 disabled:text-gray-400 rounded text-sm font-medium transition-colors"
-            >
-              -4 Bars
-            </button>
-            <button
-              onClick={addBars}
-              className="px-3 py-2 bg-blue-500 text-white hover:bg-blue-600 rounded text-sm font-medium transition-colors"
-            >
-              +4 Bars
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Available Chords Palette */}
-      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">Available Chords (C Major):</h3>
-        <div className="flex flex-wrap gap-2">
-          {availableChords.slice(0, -1).map((chord) => (
-            <div
-              key={chord}
-              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium cursor-grab"
-              draggable
-              onDragStart={(e) => e.dataTransfer.setData('text/plain', chord)}
-            >
-              {chord}
-            </div>
-          ))}
-          <div
-            className="px-3 py-1 bg-gray-200 text-gray-600 rounded-lg text-sm font-medium cursor-grab"
-            draggable
-            onDragStart={(e) => e.dataTransfer.setData('text/plain', '')}
-          >
-            Clear
-          </div>
-        </div>
-      </div>
 
       {/* Drum Tracks */}
       <div className="space-y-6 mb-8">
@@ -331,8 +362,8 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
               </div>
             </div>
             
-            {/* Step buttons row */}
-            <div className={`grid gap-1 ${getDrumStepsPerBar() === 12 ? 'grid-cols-12' : 'grid-cols-16'}`}>
+            {/* Step buttons row - Show 2 bars for 4/4 (32 steps) or 3 bars for 3/4 (36 steps) */}
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${track.pattern.length}, minmax(0, 1fr))` }}>
               {track.pattern.map((active, stepIndex) => (
                 <button
                   key={stepIndex}
@@ -393,43 +424,38 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
             </div>
             
             {/* Step buttons row */}
-            <div className={`grid gap-1 ${getChordStepsPerBar() === 3 ? 'grid-cols-12' : 'grid-cols-16'}`}>
+            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${track.chords.length}, minmax(0, 1fr))` }}>
               {track.chords.map((chord, stepIndex) => (
-                <div
+                <button
                   key={stepIndex}
                   className={`relative w-12 h-12 rounded border-2 transition-transform ${
                     chord
-                      ? 'bg-blue-500 border-blue-600 text-white'
+                      ? 'bg-blue-500 border-blue-600 text-white hover:bg-blue-400'
                       : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
                   } ${
                     isPlaying && currentStep === stepIndex
                       ? 'ring-2 ring-blue-400 scale-105'
                       : ''
                   }`}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const droppedChord = e.dataTransfer.getData('text/plain');
-                    setChordAtStep(trackIndex, stepIndex, droppedChord);
-                  }}
-                  onClick={() => setChordAtStep(trackIndex, stepIndex, '')}
+                  onClick={() => chord ? setChordAtStep(trackIndex, stepIndex, '') : openChordSelector(trackIndex, stepIndex)}
+                  title={chord ? `Click to clear ${chord}` : 'Click to add chord'}
                 >
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-xs font-bold text-center">
-                      {chord || (stepIndex + 1)}
+                      {chord || '+'}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
 
             {/* Bar markers */}
-            <div className={`grid gap-1 ${getChordStepsPerBar() === 3 ? 'grid-cols-12' : 'grid-cols-16'} mt-1`}>
+            <div className="grid gap-1 mt-1" style={{ gridTemplateColumns: `repeat(${track.chords.length}, minmax(0, 1fr))` }}>
               {Array.from({ length: chordSteps }, (_, stepIndex) => (
                 <div key={stepIndex} className="text-center">
-                  {stepIndex % getChordStepsPerBar() === 0 && (
+                  {stepIndex % timeSignature.numerator === 0 && (
                     <div className="text-xs text-gray-400 font-medium">
-                      Bar {Math.floor(stepIndex / getChordStepsPerBar()) + 1}
+                      Bar {Math.floor(stepIndex / timeSignature.numerator) + 1}
                     </div>
                   )}
                 </div>
@@ -443,13 +469,48 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
       <div className="mt-6 p-4 bg-blue-50 rounded-lg">
         <h3 className="text-sm font-medium text-blue-800 mb-2">How to Use:</h3>
         <ul className="text-xs text-blue-700 space-y-1">
-          <li>• Drag chords from the palette above onto the step buttons</li>
+          <li>• Click drum step buttons to toggle drum hits on/off</li>
+          <li>• Click empty chord steps (+) to select a chord</li>
+          <li>• Click filled chord steps to clear them</li>
           <li>• Each step represents one beat in your progression</li>
-          <li>• Click a step to clear it, or drag "Clear" to remove chords</li>
-          <li>• Use multiple tracks to layer different chord progressions</li>
-          <li>• Press Play to hear your progression loop</li>
+          <li>• Use multiple tracks to layer different progressions</li>
+          <li>• Press Play to hear everything loop together</li>
         </ul>
       </div>
+
+      {/* Chord Selection Modal */}
+      {showChordSelector && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">Select Chord</h3>
+            <div className="grid grid-cols-4 gap-2 mb-4">
+              {availableChords.slice(0, -1).map((chord) => (
+                <button
+                  key={chord}
+                  onClick={() => selectChord(chord)}
+                  className="px-4 py-3 bg-blue-100 text-blue-800 rounded-lg font-medium hover:bg-blue-200 transition-colors"
+                >
+                  {chord}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => selectChord('')}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowChordSelector(false)}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
