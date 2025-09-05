@@ -19,9 +19,8 @@ RUN npm ci
 
 # Copy source code
 COPY web/ ./
-# Copy translations and samples if needed
+# Copy translations if needed for build
 COPY translations/ ../translations/
-COPY samples/ ../samples/
 
 # Build the application
 RUN npm run build
