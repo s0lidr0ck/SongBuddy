@@ -438,9 +438,9 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
         {/* Track Labels Column */}
         <div className="flex">
           <div className="w-16 flex-shrink-0 space-y-3">
-            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center">DRUMS</h3>
+            <h3 className="text-xs font-bold text-gray-700 h-8 flex items-center justify-center">DRUMS</h3>
             {drumTracks.map((track, trackIndex) => (
-              <div key={trackIndex} className="h-10 flex items-center">
+              <div key={trackIndex} className="h-10 flex items-center justify-center">
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
@@ -448,14 +448,14 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
                     onChange={() => toggleDrumTrack(trackIndex)}
                     className="rounded w-3 h-3"
                   />
-                  <span className="text-sm">
+                  <span className="text-sm font-bold text-gray-800">
                     {track.name}
                   </span>
                 </label>
               </div>
             ))}
             
-            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center pt-2">CHORD</h3>
+            <h3 className="text-xs font-bold text-gray-700 h-8 flex items-center justify-center pt-2">CHORD</h3>
             {chordTracks.map((track, trackIndex) => (
               <div key={trackIndex} className="h-10 flex items-center justify-center">
                 <label className="flex items-center gap-1">
@@ -465,7 +465,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
                     onChange={() => toggleChordTrack(trackIndex)}
                     className="rounded w-3 h-3"
                   />
-                  <span className="text-sm">
+                  <span className="text-sm font-bold text-gray-800">
                     {track.name}
                   </span>
                 </label>
