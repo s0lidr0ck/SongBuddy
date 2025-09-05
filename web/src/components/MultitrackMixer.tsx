@@ -24,12 +24,16 @@ interface DrumTrack {
 }
 
 const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => {
-  const { bpm, timeSignature, isPlaying, setIsPlaying } = useTransport();
+  const { bpm, setBpm, timeSignature, setTimeSignature, isPlaying, setIsPlaying } = useTransport();
   const [scheduler, setScheduler] = useState<AudioScheduler | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [isLooping, setIsLooping] = useState(true);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [audioBuffers, setAudioBuffers] = useState<Map<string, AudioBuffer>>(new Map());
+  
+  // Local controls
+  const [selectedKey, setSelectedKey] = useState('C');
+  const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   
   // Chord selection modal state
   const [showChordSelector, setShowChordSelector] = useState(false);
@@ -44,7 +48,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   const chordSteps = totalBeats; // 1 chord per beat
   const drumSteps = totalBeats; // 1 drum step per beat (no subdivisions)
 
-  // Available chords for the current key (C major for now)
+  // Available chords for the selected key
   const availableChords = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', ''];
 
   // Initialize drum tracks (like in Step808)
@@ -115,6 +119,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   // Load drum samples from S3
   const loadDrumSamples = async (schedulerInstance: AudioScheduler) => {
     try {
+      console.log('Loading drum samples...');
       const [kick, snare, hat, ride] = await Promise.all([
         schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/kick.mp3'),
         schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/snare.mp3'),
@@ -122,12 +127,16 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
         schedulerInstance.loadSample('https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/808/ride.mp3')
       ]);
       
-      const newBuffers = new Map(audioBuffers);
-      if (kick) newBuffers.set('kick', kick);
-      if (snare) newBuffers.set('snare', snare);
-      if (hat) newBuffers.set('hat', hat);
-      if (ride) newBuffers.set('ride', ride);
-      setAudioBuffers(newBuffers);
+      console.log('Drum samples loaded:', { kick: !!kick, snare: !!snare, hat: !!hat, ride: !!ride });
+      
+      setAudioBuffers(prev => {
+        const newBuffers = new Map(prev);
+        if (kick) newBuffers.set('kick', kick);
+        if (snare) newBuffers.set('snare', snare);
+        if (hat) newBuffers.set('hat', hat);
+        if (ride) newBuffers.set('ride', ride);
+        return newBuffers;
+      });
     } catch (error) {
       console.error('Error loading drum samples:', error);
     }
@@ -136,7 +145,9 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   // Load chord samples from S3
   const loadChordSamples = async (schedulerInstance: AudioScheduler) => {
     try {
+      console.log('Loading chord samples...');
       const chordNames = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'];
+      
       for (const chord of chordNames) {
         const fileName = `C-${chord}.mp3`;
         const url = `https://s-r-m.s3.us-east-1.amazonaws.com/SongBuddy/audio/chords/${encodeURIComponent(fileName)}`;
@@ -146,12 +157,16 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
           if (response.ok) {
             const arrayBuffer = await response.arrayBuffer();
             const audioBuffer = await schedulerInstance.audioContext.decodeAudioData(arrayBuffer);
-            const newBuffers = new Map(audioBuffers);
-            newBuffers.set(chord, audioBuffer);
-            setAudioBuffers(newBuffers);
+            
+            setAudioBuffers(prev => {
+              const newBuffers = new Map(prev);
+              newBuffers.set(chord, audioBuffer);
+              console.log(`Loaded chord: ${chord}`);
+              return newBuffers;
+            });
           }
         } catch (error) {
-          console.log(`Could not load chord: ${chord}`);
+          console.log(`Could not load chord: ${chord}`, error);
         }
       }
     } catch (error) {
@@ -298,29 +313,104 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-800 flex items-center">
           <span className="mr-2">🎛️</span>
-          Multitrack Chord Sequencer
+          Multitrack Sequencer
         </h2>
         
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">{getDisplayBars()} bars</span> • 
-            <span className="font-medium ml-1">{drumSteps} drum steps</span> • 
-            <span className="font-medium ml-1">{chordSteps} chord steps</span> • 
-            <span className="font-medium ml-1">{timeSignature.numerator}/{timeSignature.denominator}</span>
+        <button
+          onClick={togglePlayback}
+          className={`
+            px-6 py-3 rounded-lg font-medium transition-colors text-lg
+            ${isPlaying
+              ? 'bg-red-500 text-white hover:bg-red-600'
+              : 'bg-green-500 text-white hover:bg-green-600'
+            }
+          `}
+        >
+          {isPlaying ? '⏸ Stop' : '▶ Play'}
+        </button>
+      </div>
+
+      {/* Controls Section */}
+      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Key Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2">Key:</label>
+            <select
+              value={selectedKey}
+              onChange={(e) => setSelectedKey(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {keys.map((key) => (
+                <option key={key} value={key}>
+                  {key.replace('#', '♯')}
+                </option>
+              ))}
+            </select>
           </div>
-          
-          <button
-            onClick={togglePlayback}
-            className={`
-              px-4 py-2 rounded-lg font-medium transition-colors
-              ${isPlaying
-                ? 'bg-red-500 text-white hover:bg-red-600'
-                : 'bg-green-500 text-white hover:bg-green-600'
-              }
-            `}
-          >
-            {isPlaying ? '⏸ Stop' : '▶ Play'}
-          </button>
+
+          {/* BPM Control */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2">Tempo:</label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setBpm(Math.max(60, bpm - 5))}
+                className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded font-bold text-sm"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min="60"
+                max="200"
+                value={bpm}
+                onChange={(e) => setBpm(Number(e.target.value))}
+                className="flex-1 px-2 py-2 border border-gray-300 rounded text-center"
+              />
+              <button
+                onClick={() => setBpm(Math.min(200, bpm + 5))}
+                className="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded font-bold text-sm"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          {/* Time Signature */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2">Time Signature:</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setTimeSignature({ numerator: 4, denominator: 4 })}
+                className={`flex-1 px-3 py-2 rounded-lg font-medium transition-colors ${
+                  timeSignature.numerator === 4
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                4/4
+              </button>
+              <button
+                onClick={() => setTimeSignature({ numerator: 3, denominator: 4 })}
+                className={`flex-1 px-3 py-2 rounded-lg font-medium transition-colors ${
+                  timeSignature.numerator === 3
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                3/4
+              </button>
+            </div>
+          </div>
+
+          {/* Pattern Info */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 mb-2">Pattern:</label>
+            <div className="text-sm text-gray-600 py-2">
+              <div>{getDisplayBars()} bars • {drumSteps} steps</div>
+              <div className="text-xs text-gray-500">{selectedKey.replace('#', '♯')} Major</div>
+            </div>
+          </div>
         </div>
       </div>
 
