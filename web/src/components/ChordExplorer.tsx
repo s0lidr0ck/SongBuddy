@@ -20,6 +20,14 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
   const [audioBuffers, setAudioBuffers] = useState<Map<string, AudioBuffer>>(new Map());
   const [currentSource, setCurrentSource] = useState<AudioBufferSourceNode | null>(null);
   const [currentOscillators, setCurrentOscillators] = useState<OscillatorNode[]>([]);
+  
+  // Chord progression state
+  const [progression, setProgression] = useState<Chord[]>([]);
+  const [isPlayingProgression, setIsPlayingProgression] = useState(false);
+  const [currentChordIndex, setCurrentChordIndex] = useState(-1);
+  const [progressionBPM, setProgressionBPM] = useState(120);
+  const [progressionLoop, setProgressionLoop] = useState(true);
+  const [progressionTimeoutId, setProgressionTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
   // All possible keys
   const keys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -178,8 +186,76 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
     setPlayingChord(null);
   };
 
-  // Play a chord (try audio file first, fallback to generated)
-  const playChord = async (chord: Chord) => {
+  // Add chord to progression
+  const addChordToProgression = (chord: Chord) => {
+    setProgression(prev => [...prev, chord]);
+  };
+
+  // Remove chord from progression
+  const removeChordFromProgression = (index: number) => {
+    setProgression(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Clear progression
+  const clearProgression = () => {
+    stopProgression();
+    setProgression([]);
+  };
+
+  // Play chord progression
+  const playProgression = () => {
+    if (progression.length === 0 || isPlayingProgression) return;
+    
+    setIsPlayingProgression(true);
+    setCurrentChordIndex(0);
+    playProgressionChord(0);
+  };
+
+  // Stop chord progression
+  const stopProgression = () => {
+    if (progressionTimeoutId) {
+      clearTimeout(progressionTimeoutId);
+      setProgressionTimeoutId(null);
+    }
+    setIsPlayingProgression(false);
+    setCurrentChordIndex(-1);
+    stopCurrentAudio();
+  };
+
+  // Play a specific chord in the progression
+  const playProgressionChord = async (index: number) => {
+    if (index >= progression.length) {
+      if (progressionLoop && progression.length > 0) {
+        // Loop back to beginning
+        const timeoutId = setTimeout(() => {
+          setCurrentChordIndex(0);
+          playProgressionChord(0);
+        }, 100); // Small gap between loops
+        setProgressionTimeoutId(timeoutId);
+      } else {
+        // End progression
+        setIsPlayingProgression(false);
+        setCurrentChordIndex(-1);
+      }
+      return;
+    }
+
+    const chord = progression[index];
+    setCurrentChordIndex(index);
+    await playChordAudio(chord);
+
+    // Calculate time for next chord (quarter note duration)
+    const quarterNoteDuration = (60 / progressionBPM) * 1000; // Convert to milliseconds
+    
+    const timeoutId = setTimeout(() => {
+      playProgressionChord(index + 1);
+    }, quarterNoteDuration);
+    
+    setProgressionTimeoutId(timeoutId);
+  };
+
+  // Core audio playing function (used by both single chord and progression)
+  const playChordAudio = async (chord: Chord) => {
     if (!audioContext) return;
 
     if (audioContext.state === 'suspended') {
@@ -188,8 +264,6 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
 
     // Stop any currently playing audio
     stopCurrentAudio();
-
-    setPlayingChord(chord.name);
 
     // Get preloaded audio buffer
     const audioKey = `${selectedKey}-${chord.romanNumeral}`;
@@ -253,6 +327,12 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
     }
   };
 
+  // Play a chord (wrapper for single chord clicks)
+  const playChord = async (chord: Chord) => {
+    setPlayingChord(chord.name);
+    await playChordAudio(chord);
+  };
+
   const chords = getChordsForKey(selectedKey);
 
   return (
@@ -281,24 +361,119 @@ const ChordExplorer: React.FC<ChordExplorerProps> = ({ className = '' }) => {
           <label className="block text-sm font-medium text-gray-600 mb-2">Chords:</label>
           <div className="flex gap-2 flex-wrap">
             {chords.map((chord, index) => (
-              <button
-                key={index}
-                onClick={() => playChord(chord)}
-                className={`
-                  px-4 py-2 border border-gray-300 rounded-lg font-medium transition-colors
-                  ${playingChord === chord.name
-                    ? 'bg-blue-500 text-white border-blue-500'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
-                  }
-                `}
-              >
-                {chord.romanNumeral}
-              </button>
+              <div key={index} className="flex flex-col gap-1">
+                <button
+                  onClick={() => playChord(chord)}
+                  className={`
+                    px-4 py-2 border border-gray-300 rounded-lg font-medium transition-colors
+                    ${playingChord === chord.name
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }
+                  `}
+                >
+                  {chord.romanNumeral}
+                </button>
+                <button
+                  onClick={() => addChordToProgression(chord)}
+                  className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 transition-colors"
+                  title="Add to progression"
+                >
+                  +
+                </button>
+              </div>
             ))}
           </div>
         </div>
       </div>
 
+      {/* Chord Progression Builder */}
+      <div className="mt-8 p-6 bg-gray-50 rounded-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold text-gray-800">Chord Progression</h3>
+          <div className="flex items-center gap-4">
+            {/* BPM Control */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-600">BPM:</label>
+              <input
+                type="number"
+                min="60"
+                max="200"
+                value={progressionBPM}
+                onChange={(e) => setProgressionBPM(Number(e.target.value))}
+                className="w-16 px-2 py-1 border border-gray-300 rounded text-center"
+              />
+            </div>
+            
+            {/* Loop Toggle */}
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-600">
+              <input
+                type="checkbox"
+                checked={progressionLoop}
+                onChange={(e) => setProgressionLoop(e.target.checked)}
+                className="rounded"
+              />
+              Loop
+            </label>
+          </div>
+        </div>
+
+        {/* Progression Display */}
+        <div className="mb-4">
+          {progression.length === 0 ? (
+            <p className="text-gray-500 italic">Click + buttons above to build your progression</p>
+          ) : (
+            <div className="flex gap-2 flex-wrap">
+              {progression.map((chord, index) => (
+                <div
+                  key={`${chord.romanNumeral}-${index}`}
+                  className={`
+                    flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-colors
+                    ${currentChordIndex === index && isPlayingProgression
+                      ? 'bg-blue-500 text-white border-blue-600'
+                      : 'bg-white text-gray-800 border-gray-300'
+                    }
+                  `}
+                >
+                  <span className="font-bold">{chord.romanNumeral}</span>
+                  <button
+                    onClick={() => removeChordFromProgression(index)}
+                    className="text-red-500 hover:text-red-700 text-sm"
+                    title="Remove chord"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Progression Controls */}
+        <div className="flex gap-2">
+          <button
+            onClick={isPlayingProgression ? stopProgression : playProgression}
+            disabled={progression.length === 0}
+            className={`
+              px-4 py-2 rounded-lg font-medium transition-colors
+              ${isPlayingProgression
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-blue-500 text-white hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed'
+              }
+            `}
+          >
+            {isPlayingProgression ? 'Stop' : 'Play Progression'}
+          </button>
+          
+          <button
+            onClick={clearProgression}
+            disabled={progression.length === 0}
+            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      </div>
 
     </div>
   );
