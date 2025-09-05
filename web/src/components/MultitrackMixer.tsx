@@ -67,28 +67,28 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   // Initialize drum tracks (like in Step808)
   const [drumTracks, setDrumTracks] = useState<DrumTrack[]>([
     {
-      name: '🦵', // Kick
+      name: 'K', // Kick
       pattern: Array(drumSteps).fill(0).map((_, i) => i % 8 === 0 || i % 8 === 4 ? 1 : 0),
       volume: 0.8,
       enabled: true,
       color: 'bg-red-500'
     },
     {
-      name: '🥁', // Snare
+      name: 'S', // Snare
       pattern: Array(drumSteps).fill(0).map((_, i) => i % 8 === 2 || i % 8 === 6 ? 1 : 0),
       volume: 0.7,
       enabled: true,
       color: 'bg-blue-500'
     },
     {
-      name: '🎩', // Hat
+      name: 'HH', // Hat
       pattern: Array(drumSteps).fill(1),
       volume: 0.5,
       enabled: true,
       color: 'bg-yellow-500'
     },
     {
-      name: '🔔', // Ride
+      name: 'R', // Ride
       pattern: Array(drumSteps).fill(0),
       volume: 0.6,
       enabled: true,
@@ -96,18 +96,12 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     }
   ]);
 
-  // Initialize chord tracks
+  // Initialize chord tracks (only one track now)
   const [chordTracks, setChordTracks] = useState<ChordTrack[]>([
     {
-      name: '🎸', // Chord Track 1
+      name: 'P', // Piano/Chords
       chords: Array(chordSteps).fill(''),
       volume: 0.8,
-      enabled: true
-    },
-    {
-      name: '🎹', // Chord Track 2 
-      chords: Array(chordSteps).fill(''),
-      volume: 0.7,
       enabled: true
     }
   ]);
@@ -444,7 +438,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
         {/* Track Labels Column */}
         <div className="flex">
           <div className="w-16 flex-shrink-0 space-y-3">
-            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center">🥁</h3>
+            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center">DRUMS</h3>
             {drumTracks.map((track, trackIndex) => (
               <div key={trackIndex} className="h-10 flex items-center">
                 <label className="flex items-center gap-1">
@@ -461,7 +455,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
               </div>
             ))}
             
-            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center pt-2">🎵</h3>
+            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center pt-2">CHORD</h3>
             {chordTracks.map((track, trackIndex) => (
               <div key={trackIndex} className="h-10 flex items-center justify-center">
                 <label className="flex items-center gap-1">
