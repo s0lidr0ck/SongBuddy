@@ -67,28 +67,28 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   // Initialize drum tracks (like in Step808)
   const [drumTracks, setDrumTracks] = useState<DrumTrack[]>([
     {
-      name: 'Kick',
+      name: '🦵', // Kick
       pattern: Array(drumSteps).fill(0).map((_, i) => i % 8 === 0 || i % 8 === 4 ? 1 : 0),
       volume: 0.8,
       enabled: true,
       color: 'bg-red-500'
     },
     {
-      name: 'Snare',
+      name: '🥁', // Snare
       pattern: Array(drumSteps).fill(0).map((_, i) => i % 8 === 2 || i % 8 === 6 ? 1 : 0),
       volume: 0.7,
       enabled: true,
       color: 'bg-blue-500'
     },
     {
-      name: 'Hat',
+      name: '🎩', // Hat
       pattern: Array(drumSteps).fill(1),
       volume: 0.5,
       enabled: true,
       color: 'bg-yellow-500'
     },
     {
-      name: 'Ride',
+      name: '🔔', // Ride
       pattern: Array(drumSteps).fill(0),
       volume: 0.6,
       enabled: true,
@@ -99,13 +99,13 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   // Initialize chord tracks
   const [chordTracks, setChordTracks] = useState<ChordTrack[]>([
     {
-      name: 'Chord Track 1',
+      name: '🎸', // Chord Track 1
       chords: Array(chordSteps).fill(''),
       volume: 0.8,
       enabled: true
     },
     {
-      name: 'Chord Track 2', 
+      name: '🎹', // Chord Track 2 
       chords: Array(chordSteps).fill(''),
       volume: 0.7,
       enabled: true
@@ -443,8 +443,8 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
       <div className="space-y-3">
         {/* Track Labels Column */}
         <div className="flex">
-          <div className="w-32 flex-shrink-0 space-y-3">
-            <h3 className="text-sm font-semibold text-gray-800 h-8 flex items-center">🥁 Drums</h3>
+          <div className="w-16 flex-shrink-0 space-y-3">
+            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center">🥁</h3>
             {drumTracks.map((track, trackIndex) => (
               <div key={trackIndex} className="h-10 flex items-center">
                 <label className="flex items-center gap-1">
@@ -454,16 +454,16 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
                     onChange={() => toggleDrumTrack(trackIndex)}
                     className="rounded w-3 h-3"
                   />
-                  <span className="text-xs font-medium text-gray-700">
+                  <span className="text-sm">
                     {track.name}
                   </span>
                 </label>
               </div>
             ))}
             
-            <h3 className="text-sm font-semibold text-gray-800 h-8 flex items-center pt-2">🎸 Chords</h3>
+            <h3 className="text-xs font-semibold text-gray-800 h-8 flex items-center justify-center pt-2">🎵</h3>
             {chordTracks.map((track, trackIndex) => (
-              <div key={trackIndex} className="h-10 flex items-center">
+              <div key={trackIndex} className="h-10 flex items-center justify-center">
                 <label className="flex items-center gap-1">
                   <input
                     type="checkbox"
@@ -471,7 +471,7 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
                     onChange={() => toggleChordTrack(trackIndex)}
                     className="rounded w-3 h-3"
                   />
-                  <span className="text-xs font-medium text-gray-700">
+                  <span className="text-sm">
                     {track.name}
                   </span>
                 </label>
@@ -555,8 +555,8 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
             {[...drumTracks, ...chordTracks].map((track, index) => (
               <div key={index} className="flex items-center gap-2">
-                <span className="min-w-[3rem] text-gray-600">
-                  {'color' in track ? track.name : track.name}:
+                <span className="w-6 text-center text-gray-600">
+                  {track.name}
                 </span>
                 <input
                   type="range"
