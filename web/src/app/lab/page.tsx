@@ -74,5 +74,6 @@ export default function LabPage() {
           </div>
         </div>
       </div>
+    </div>
   );
 }
