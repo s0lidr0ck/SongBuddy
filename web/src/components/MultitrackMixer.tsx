@@ -40,13 +40,26 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
   const [selectedTrackIndex, setSelectedTrackIndex] = useState<number>(-1);
   const [selectedStepIndex, setSelectedStepIndex] = useState<number>(-1);
 
-  // Calculate steps based on time signature 
-  // 4/4 time: 2 bars = 8 beats = 8 chord steps, 8 drum steps
-  // 3/4 time: 4 bars = 12 beats = 12 chord steps, 12 drum steps (to complete pattern)
-  const getDisplayBars = () => timeSignature.numerator === 3 ? 4 : 2;
-  const totalBeats = timeSignature.numerator * getDisplayBars();
+  // Bar management
+  const [totalBars, setTotalBars] = useState(timeSignature.numerator === 3 ? 4 : 2);
+  
+  // Calculate steps based on time signature and total bars
+  const totalBeats = timeSignature.numerator * totalBars;
   const chordSteps = totalBeats; // 1 chord per beat
   const drumSteps = totalBeats; // 1 drum step per beat (no subdivisions)
+  
+  const addBars = () => {
+    const barsToAdd = timeSignature.numerator === 3 ? 3 : 2; // Add complete patterns
+    setTotalBars(prev => prev + barsToAdd);
+  };
+
+  const removeBars = () => {
+    const barsToRemove = timeSignature.numerator === 3 ? 3 : 2;
+    const minBars = timeSignature.numerator === 3 ? 3 : 2;
+    if (totalBars > minBars) {
+      setTotalBars(prev => Math.max(minBars, prev - barsToRemove));
+    }
+  };
 
   // Available chords for the selected key
   const availableChords = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°', ''];
@@ -182,28 +195,24 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     }
   }, [bpm, drumSteps, scheduler]);
 
-  // Update tracks when time signature changes
+  // Update tracks when time signature or bar count changes
   useEffect(() => {
-    const newTotalBeats = timeSignature.numerator * getDisplayBars();
-    const newDrumSteps = newTotalBeats; // 1 step per beat
-    const newChordSteps = newTotalBeats;
-    
     // Update drum tracks
     setDrumTracks(prev => prev.map(track => ({
       ...track,
-      pattern: track.pattern.length === newDrumSteps 
+      pattern: track.pattern.length === drumSteps 
         ? track.pattern 
-        : [...track.pattern, ...Array(Math.max(0, newDrumSteps - track.pattern.length)).fill(0)].slice(0, newDrumSteps)
+        : [...track.pattern, ...Array(Math.max(0, drumSteps - track.pattern.length)).fill(0)].slice(0, drumSteps)
     })));
     
     // Update chord tracks
     setChordTracks(prev => prev.map(track => ({
       ...track,
-      chords: track.chords.length === newChordSteps 
+      chords: track.chords.length === chordSteps 
         ? track.chords 
-        : [...track.chords, ...Array(Math.max(0, newChordSteps - track.chords.length)).fill('')].slice(0, newChordSteps)
+        : [...track.chords, ...Array(Math.max(0, chordSteps - track.chords.length)).fill('')].slice(0, chordSteps)
     })));
-  }, [timeSignature]);
+  }, [timeSignature, totalBars, drumSteps, chordSteps]);
 
   // Combined playback callback for drums and chords
   const playbackCallback = useCallback((time: number, stepIndex: number) => {
@@ -403,12 +412,27 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
             </div>
           </div>
 
-          {/* Pattern Info */}
+          {/* Pattern Info & Bar Controls */}
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-2">Pattern:</label>
-            <div className="text-sm text-gray-600 py-2">
-              <div>{getDisplayBars()} bars • {drumSteps} steps</div>
+            <div className="text-sm text-gray-600 mb-2">
+              <div>{totalBars} bars • {drumSteps} steps</div>
               <div className="text-xs text-gray-500">{selectedKey.replace('#', '♯')} Major</div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={removeBars}
+                disabled={totalBars <= (timeSignature.numerator === 3 ? 3 : 2)}
+                className="px-2 py-1 bg-red-100 text-red-700 hover:bg-red-200 disabled:bg-gray-100 disabled:text-gray-400 rounded text-xs font-medium transition-colors"
+              >
+                Remove
+              </button>
+              <button
+                onClick={addBars}
+                className="px-2 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-medium transition-colors"
+              >
+                Add Bars
+              </button>
             </div>
           </div>
         </div>
@@ -452,25 +476,40 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
               </div>
             </div>
             
-            {/* Step buttons row - Show 2 bars for 4/4 (32 steps) or 3 bars for 3/4 (36 steps) */}
-            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${track.pattern.length}, minmax(0, 1fr))` }}>
-              {track.pattern.map((active, stepIndex) => (
-                <button
-                  key={stepIndex}
-                  onClick={() => toggleDrumStep(trackIndex, stepIndex)}
-                  className={`w-12 h-12 rounded border-2 transition-transform ${
-                    active
-                      ? `${track.color} border-gray-400`
-                      : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                  } ${
-                    isPlaying && currentStep === stepIndex
-                      ? 'ring-2 ring-blue-400 scale-105'
-                      : ''
-                  }`}
-                >
-                  <div className="text-xs text-gray-600">{stepIndex + 1}</div>
-                </button>
-              ))}
+            {/* Step buttons row - Horizontal scrolling */}
+            <div className="overflow-x-auto">
+              <div className="flex gap-1 pb-2" style={{ minWidth: `${track.pattern.length * 52}px` }}>
+                {track.pattern.map((active, stepIndex) => (
+                  <button
+                    key={stepIndex}
+                    onClick={() => toggleDrumStep(trackIndex, stepIndex)}
+                    className={`w-12 h-12 flex-shrink-0 rounded border-2 transition-transform ${
+                      active
+                        ? `${track.color} border-gray-400`
+                        : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                    } ${
+                      isPlaying && currentStep === stepIndex
+                        ? 'ring-2 ring-blue-400 scale-105'
+                        : ''
+                    }`}
+                  >
+                    <div className="text-xs text-gray-600">{stepIndex + 1}</div>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Bar markers */}
+              <div className="flex gap-1" style={{ minWidth: `${track.pattern.length * 52}px` }}>
+                {Array.from({ length: drumSteps }, (_, stepIndex) => (
+                  <div key={stepIndex} className="w-12 flex-shrink-0 text-center">
+                    {stepIndex % timeSignature.numerator === 0 && (
+                      <div className="text-xs text-gray-400 font-medium">
+                        Bar {Math.floor(stepIndex / timeSignature.numerator) + 1}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         ))}
@@ -513,43 +552,45 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
               </div>
             </div>
             
-            {/* Step buttons row */}
-            <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${track.chords.length}, minmax(0, 1fr))` }}>
-              {track.chords.map((chord, stepIndex) => (
-                <button
-                  key={stepIndex}
-                  className={`relative w-12 h-12 rounded border-2 transition-transform ${
-                    chord
-                      ? 'bg-blue-500 border-blue-600 text-white hover:bg-blue-400'
-                      : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
-                  } ${
-                    isPlaying && currentStep === stepIndex
-                      ? 'ring-2 ring-blue-400 scale-105'
-                      : ''
-                  }`}
-                  onClick={() => chord ? setChordAtStep(trackIndex, stepIndex, '') : openChordSelector(trackIndex, stepIndex)}
-                  title={chord ? `Click to clear ${chord}` : 'Click to add chord'}
-                >
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-xs font-bold text-center">
-                      {chord || '+'}
+            {/* Step buttons row - Horizontal scrolling */}
+            <div className="overflow-x-auto">
+              <div className="flex gap-1 pb-2" style={{ minWidth: `${track.chords.length * 52}px` }}>
+                {track.chords.map((chord, stepIndex) => (
+                  <button
+                    key={stepIndex}
+                    className={`relative w-12 h-12 flex-shrink-0 rounded border-2 transition-transform ${
+                      chord
+                        ? 'bg-blue-500 border-blue-600 text-white hover:bg-blue-400'
+                        : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                    } ${
+                      isPlaying && currentStep === stepIndex
+                        ? 'ring-2 ring-blue-400 scale-105'
+                        : ''
+                    }`}
+                    onClick={() => chord ? setChordAtStep(trackIndex, stepIndex, '') : openChordSelector(trackIndex, stepIndex)}
+                    title={chord ? `Click to clear ${chord}` : 'Click to add chord'}
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-xs font-bold text-center">
+                        {chord || '+'}
+                      </div>
                     </div>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  </button>
+                ))}
+              </div>
 
-            {/* Bar markers */}
-            <div className="grid gap-1 mt-1" style={{ gridTemplateColumns: `repeat(${track.chords.length}, minmax(0, 1fr))` }}>
-              {Array.from({ length: chordSteps }, (_, stepIndex) => (
-                <div key={stepIndex} className="text-center">
-                  {stepIndex % timeSignature.numerator === 0 && (
-                    <div className="text-xs text-gray-400 font-medium">
-                      Bar {Math.floor(stepIndex / timeSignature.numerator) + 1}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {/* Bar markers */}
+              <div className="flex gap-1" style={{ minWidth: `${track.chords.length * 52}px` }}>
+                {Array.from({ length: chordSteps }, (_, stepIndex) => (
+                  <div key={stepIndex} className="w-12 flex-shrink-0 text-center">
+                    {stepIndex % timeSignature.numerator === 0 && (
+                      <div className="text-xs text-gray-400 font-medium">
+                        Bar {Math.floor(stepIndex / timeSignature.numerator) + 1}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         ))}
