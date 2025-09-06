@@ -1,7 +1,7 @@
 {
-  "name": "SongBuddy",
-  "short_name": "SongBuddy",
-  "description": "Offline Christian songwriting companion",
+  "name": "Pro Writing Tools",
+  "short_name": "Pro Writing Tools",
+  "description": "Professional songwriting and music creation tools",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

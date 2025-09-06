@@ -210,14 +210,23 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
 
   // Combined playback callback for drums and chords
   const playbackCallback = useCallback((time: number, stepIndex: number) => {
+    console.log(`Playback callback: step ${stepIndex}, time ${time}`);
     setCurrentStep(stepIndex);
     
     // Play drums at every step (1 step per beat)
     drumTracks.forEach(track => {
       if (track.enabled && track.pattern[stepIndex] && scheduler) {
-        const drumBuffer = audioBuffers.get(track.name.toLowerCase());
+        console.log(`Trying to play ${track.name} at step ${stepIndex}`);
+        const drumKey = track.name === 'K' ? 'kick' : 
+                       track.name === 'S' ? 'snare' :
+                       track.name === 'HH' ? 'hat' : 
+                       track.name === 'R' ? 'ride' : track.name.toLowerCase();
+        const drumBuffer = audioBuffers.get(drumKey);
         if (drumBuffer) {
+          console.log(`Playing ${drumKey} sample`);
           scheduler.playSample(drumBuffer, time, track.volume);
+        } else {
+          console.log(`No buffer found for ${drumKey}`, Array.from(audioBuffers.keys()));
         }
       }
     });
@@ -225,9 +234,13 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     // Play chords at every step (1 step per beat, same as drums)
     chordTracks.forEach(track => {
       if (track.enabled && track.chords[stepIndex] && track.chords[stepIndex] !== '') {
+        console.log(`Trying to play chord ${track.chords[stepIndex]} at step ${stepIndex}`);
         const chordBuffer = audioBuffers.get(track.chords[stepIndex]);
         if (chordBuffer && scheduler) {
+          console.log(`Playing ${track.chords[stepIndex]} chord`);
           scheduler.playSample(chordBuffer, time, track.volume);
+        } else {
+          console.log(`No buffer found for chord ${track.chords[stepIndex]}`, Array.from(audioBuffers.keys()));
         }
       }
     });
@@ -238,11 +251,13 @@ const MultitrackMixer: React.FC<MultitrackMixerProps> = ({ className = '' }) => 
     if (!scheduler) return;
     
     if (isPlaying) {
+      console.log('Starting MultitrackMixer playback');
       setCurrentStep(0);
       scheduler.callbacks = [];
       scheduler.addCallback(playbackCallback);
       scheduler.start();
     } else {
+      console.log('Stopping MultitrackMixer playback');
       scheduler.stop();
       setCurrentStep(0);
     }

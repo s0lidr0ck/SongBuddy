@@ -63,7 +63,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <h1 className={`text-xl font-bold ${isSharePage ? 'text-gray-400' : 'text-gray-900'}`}>
-              SongBuddy
+              Pro Writing Tools
             </h1>
           </div>
           

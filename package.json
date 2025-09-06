@@ -1,7 +1,7 @@
 {
-  "name": "songbuddy",
+  "name": "pro-writing-tools",
   "version": "1.0.0",
-  "description": "Offline Christian songwriting companion PWA",
+  "description": "Professional songwriting and music creation tools PWA",
   "scripts": {
     "dev": "cd web && npm run dev",
     "build": "cd web && npm run build", 

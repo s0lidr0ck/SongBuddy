@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SongBuddy",
-  description: "Offline Christian songwriting companion",
+  title: "Pro Writing Tools",
+  description: "Professional songwriting and music creation tools",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "SongBuddy"
+    title: "Pro Writing Tools"
   }
 };
 
